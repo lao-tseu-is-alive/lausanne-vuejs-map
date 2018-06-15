@@ -10,6 +10,7 @@
     "test:e2e": "vue-cli-service test:e2e"
   },
   "dependencies": {
+    "cgil-html-utils": "^1.0.4",
     "cgil-log": "^1.0.3",
     "ol": "^4.6.5",
     "proj4": "^2.4.4",

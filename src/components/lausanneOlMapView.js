@@ -12,7 +12,7 @@ import OlLayerTile from 'ol/layer/tile';
 import OlMousePosition from 'ol/control/mouseposition';
 import olControl from 'ol/control';
 import olCoordinate from 'ol/coordinate';
-import olObservable from 'ol/observable';
+// import olObservable from 'ol/observable';
 import olProj from 'ol/proj';
 import OlProjection from 'ol/proj/projection';
 import OlSourceVector from 'ol/source/vector';
@@ -21,11 +21,10 @@ import OlStroke from 'ol/style/stroke';
 import OlStyle from 'ol/style/style';
 import OlTileGridWMTS from 'ol/tilegrid/wmts';
 import Log from 'cgil-log';
+import { isNullOrUndefined, functionExist } from 'cgil-html-utils';
 
 const DEV = process.env.NODE_ENV === 'development';
 const log = new Log('olMapViewJS');
-const isNullOrUndefined = variable => ((typeof (variable) === 'undefined') || (variable === null));
-export const functionExist = functionName => ((typeof (functionName) !== 'undefined') && (functionName !== null));
 const posLausanneSwissCoord = [537892.8, 152095.7];
 const zoomLevelLausanne = 7;
 export const DIGITIZE_PRECISION = 2; // cm is enough in EPSG:21781
@@ -146,6 +145,115 @@ function initWmtsLayers(initialBaseLayer) {
   return arrayWmts;
 }
 
+function getStyle(feature, defaultOptions = {
+  fill_color: 'rgba(255, 0, 0, 0.8)',
+  stroke_color: '#191aff',
+  stroke_width: 3,
+}) {
+  if (DEV) log.t('# in getStyle creating feature :', feature);
+  let props = null;
+  let theStyle = null;
+  if (!isNullOrUndefined(feature) && !isNullOrUndefined(feature.getProperties())) {
+    props = feature.getProperties();
+    const id = isNullOrUndefined(props.id) ? '#INCONNU#' : props.id;
+    const fillColor = isNullOrUndefined(props.fill_color) ?
+      defaultOptions.fill_color : props.fill_color;
+    if (DEV) log.t(`# in getStyle for id:${id} fillColor = ${fillColor}`);
+    theStyle = new OlStyle({
+      fill: new OlFill({
+        color: fillColor,
+      }),
+      stroke: new OlStroke({
+        color: props.stroke_color,
+        width: props.stroke_width,
+      }),
+      image: new OlCircle({
+        radius: 9,
+        fill: new OlFill({
+          color: '#ffcc33',
+        }),
+      }),
+    });
+  } else {
+    theStyle = new OlStyle({
+      fill: new OlFill({
+        color: defaultOptions.fill_color, // 'rgba(255, 0, 0, 0.8)',
+      }),
+      stroke: new OlStroke({
+        color: defaultOptions.stroke_color, // '#191aff',
+        width: defaultOptions.stroke_width,
+      }),
+      image: new OlCircle({
+        radius: 9,
+        fill: new OlFill({
+          color: '#ffcc33',
+        }),
+      }),
+    });
+  }
+  return theStyle;
+}
+
+function getVectorSourceGeoJson(geoJsonData) {
+  return new OlSourceVector({
+    format: new OlFormatGeoJSON({
+      defaultDataProjection: 'EPSG:21781',
+      projection: 'EPSG:21781',
+    }),
+    features: (new OlFormatGeoJSON()).readFeatures(geoJsonData),
+  });
+}
+
+export function getNumberFeaturesInLayer(olLayer) {
+  if (isNullOrUndefined(olLayer)) {
+    return 0;
+  }
+  const source = olLayer.getSource();
+  const arrFeatures = source.getFeatures();
+  return arrFeatures.length;
+}
+
+
+export function loadGeoJsonUrlPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
+  if (DEV) log.t(`# in loadGeoJSONPolygonLayer creating Layer : ${geojsonUrl}`);
+  fetch(geojsonUrl)
+    .then(response => response.json())
+    .then((json) => {
+      log.t('# in loadGeoJSONPolygonLayer then((json) => : ', json);
+      const vectorSource = getVectorSourceGeoJson(json);
+      const newLayer = new OlLayerVector({
+        source: vectorSource,
+        style: getStyle(),
+      });
+      log.w(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
+      olMap.addLayer(newLayer);
+      const extent = newLayer.getSource().getExtent();
+      olMap.getView().fit(extent, olMap.getSize());
+      if (functionExist(loadCompleteCallback)) {
+        loadCompleteCallback(newLayer);
+      }
+    });
+}
+
+export function addGeoJSONPolygonLayer(olMap, geoJsonData) {
+  if (DEV) log.t(`# in addGeoJSONPolygonLayer creating Layer : ${geoJsonData}`);
+  const vectorSource = getVectorSourceGeoJson(geoJsonData);
+  /*
+   https://openlayers.org/en/latest/examples/draw-and-modify-features.html
+   https://openlayers.org/en/latest/examples/modify-features.html
+   TODO use a property of the geojson query to display color
+   or a style function  : http://openlayersbook.github.io/ch06-styling-vector-layers/example-07.html
+   */
+  const newLayer = new OlLayerVector({
+    source: vectorSource,
+    style: getStyle(),
+  });
+  olMap.addLayer(newLayer);
+  const extent = newLayer.getSource().getExtent();
+  olMap.getView().fit(extent, olMap.getSize());
+}
+
+
 /**
  * creates an OpenLayers View Object
  * @param {array} centerView : an array [x,y] representing initial initial center of the view
@@ -175,7 +283,10 @@ export function createLausanneMap(
   divMap, centerOfMap = posLausanneSwissCoord,
   zoomLevel = zoomLevelLausanne,
   baseLayer = 'fonds_geo_osm_bdcad_couleur',
+  geojsonData = null,
+  geojsonUrl = '',
 ) {
+  if (DEV) log.t(`# in createLausanneMap with zoomLevel : ${zoomLevel}`, geojsonData);
   const olMousePosition = new OlMousePosition({
     coordinateFormat: olCoordinate.createStringXY(1),
     projection: 'EPSG:2181',
@@ -185,7 +296,20 @@ export function createLausanneMap(
     undefinedHTML: '&nbsp;'
     */
   });
-  return new OlMap({
+  const arrLayers = initWmtsLayers(baseLayer);
+  let newLayer = null;
+  if (!isNullOrUndefined(geojsonData)) {
+    log.l(`####will load GeoJSON Polygon Layer( geojsondata:${geojsonData.features.lenght}`, geojsonData);
+    const vectorSource = getVectorSourceGeoJson(geojsonData);
+    newLayer = new OlLayerVector({
+      source: vectorSource,
+      style: getStyle,
+    });
+    log.w(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
+    arrLayers.push(newLayer);
+  }
+
+  const myMap = new OlMap({
     target: divMap,
     loadTilesWhileAnimating: true,
     // projection: swissProjection,
@@ -194,114 +318,18 @@ export function createLausanneMap(
         collapsible: false,
       }),
     }).extend([olMousePosition]),
-    layers: initWmtsLayers(baseLayer),
+    layers: arrLayers,
     view: getOlView(centerOfMap, zoomLevel),
   });
-}
-
-export function getNumberFeaturesInLayer(olLayer) {
-  if (isNullOrUndefined(olLayer)) {
-    return 0;
+  if (!isNullOrUndefined(geojsonData)) {
+    const extent = newLayer.getSource().getExtent();
+    myMap.getView().fit(extent, myMap.getSize());
   }
-  const source = olLayer.getSource();
-  const arrFeatures = source.getFeatures();
-  return arrFeatures.length;
-}
-
-export function loadGeoJSONPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
-  if (DEV) log.t(`# in loadGeoJSONPolygonLayer creating Layer : ${geojsonUrl}`);
-  fetch(geojsonUrl)
-    .then(response => response.json())
-    .then((json) => {
-      log.t('# in loadGeoJSONPolygonLayer then((json) => : ', json);
-      const vectorSource = new OlSourceVector({
-        format: new OlFormatGeoJSON({
-          defaultDataProjection: 'EPSG:21781',
-          projection: 'EPSG:21781',
-        }),
-        features: (new OlFormatGeoJSON()).readFeatures(json),
-      });
-      const newLayer = new OlLayerVector({
-        source: vectorSource,
-        style: new OlStyle({
-          fill: new OlFill({
-            color: 'rgba(255, 0, 0, 0.8)',
-          }),
-          stroke: new OlStroke({
-            color: '#191aff',
-            width: 3,
-          }),
-          image: new OlCircle({
-            radius: 9,
-            fill: new OlFill({
-              color: '#ffcc33',
-            }),
-          }),
-        }),
-      });
-      log.w(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
-      olMap.addLayer(newLayer);
-      const extent = newLayer.getSource().getExtent();
-      olMap.getView().fit(extent, olMap.getSize());
-      if (functionExist(loadCompleteCallback)) {
-        loadCompleteCallback(newLayer);
-      }
-    });
-}
-
-export function addGeoJSONPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
-  if (DEV) log.t(`# in addGeoJSONPolygonLayer creating Layer : ${geojsonUrl}`);
-  const vectorSource = new OlSourceVector({
-    url: geojsonUrl,
-    format: new OlFormatGeoJSON({
-      defaultDataProjection: 'EPSG:21781',
-      projection: 'EPSG:21781',
-    }),
-  });
-  /*
-   https://openlayers.org/en/latest/examples/draw-and-modify-features.html
-   https://openlayers.org/en/latest/examples/modify-features.html
-   TODO use a property of the geojson query to display color
-   or a style function  : http://openlayersbook.github.io/ch06-styling-vector-layers/example-07.html
-   */
-  const newLayer = new OlLayerVector({
-    source: vectorSource,
-    style: new OlStyle({
-      fill: new OlFill({
-        color: 'rgba(255, 0, 0, 0.8)',
-      }),
-      stroke: new OlStroke({
-        color: '#191aff',
-        width: 3,
-      }),
-      image: new OlCircle({
-        radius: 9,
-        fill: new OlFill({
-          color: '#ffcc33',
-        }),
-      }),
-    }),
-  });
-
-  const listenerKey = vectorSource.on('change', (e) => {
-    if (DEV) console.warn('getState is ', vectorSource.getState());
-    if (vectorSource.getState() === 'ready') {
-      // TODO maybe add "loading icon" and here where to hide it
-      // retrieve extent of all features to zoom only when loading of the layer
-      // via Ajax XHR is complete
-      const extent = newLayer.getSource().getExtent();
-      if (DEV) {
-        console.log(`# Finished Loading Layer : ${geojsonUrl}`, e);
-      }
-      olMap.getView().fit(extent, olMap.getSize());
-      // and unregister the "change" listener
-      olObservable.unByKey(listenerKey);
-      if (functionExist(loadCompleteCallback)) {
-        loadCompleteCallback(newLayer);
-      }
-    }
-  });
-  return newLayer;
+  if (geojsonUrl.length > 4) {
+    log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${geojsonUrl}`);
+    loadGeoJsonUrlPolygonLayer(myMap, geojsonUrl);
+  }
+  return myMap;
 }
 
 

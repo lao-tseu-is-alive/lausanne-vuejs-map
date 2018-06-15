@@ -6,7 +6,8 @@
 
 <script>
 import Log from 'cgil-log';
-import { createLausanneMap, loadGeoJSONPolygonLayer } from './lausanneOlMapView';
+// import { isNullOrUndefined } from 'cgil-html-utils';
+import { createLausanneMap, loadGeoJsonUrlPolygonLayer } from './lausanneOlMapView';
 
 const posLausanneGareSwissCoord = [537892.8, 152095.7];
 const log = new Log('lausanneVuejsMap');
@@ -31,18 +32,27 @@ export default {
       type: String,
       default: '',
     },
+    geojsondata: {
+      type: Object,
+      default: null,
+    },
     baselayer: {
       type: String,
       default: 'fonds_geo_osm_bdcad_couleur',
     },
   },
   mounted() {
-    log.t(`# entering mounted() geojsonurl:${this.geojsonurl}`);
-    log.l(` zoom : ${this.zoom}, geojsonurl:${this.geojsonurl}`);
-    this.Map = createLausanneMap(this.$refs.mymap, this.center, this.zoom, this.baselayer);
+    log.t('# entering lausanneVuejsMap.mounted()');
+    log.l(`zoom : ${this.zoom} center : ${this.center}`);
+    this.Map = createLausanneMap(
+      this.$refs.mymap,
+      this.center, this.zoom,
+      this.baselayer, this.geojsondata,
+    );
     log.l('OpenLAyers MAP', this.Map);
     if (this.geojsonurl.length > 4) {
-      loadGeoJSONPolygonLayer(this.Map, this.geojsonurl);
+      log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${this.geojsonurl}`);
+      loadGeoJsonUrlPolygonLayer(this.Map, this.geojsonurl);
     }
   },
 };

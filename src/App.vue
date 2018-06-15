@@ -1,28 +1,42 @@
 <template>
     <div id="app">
-        <!-- here you can put a toolbar
+        <!-- here you can put a toolbar -->
         <lausanne-map class="map-small"
                       :zoom="7"
-                      geojsonurl="https://mygolux.lausanne.ch/webservice/geodata/cgtest_get_geojson_geometry.php"/>
+                      :geojsondata="geojson"
+                      ></lausanne-map>
         <lausanne-map class="map-small"
+                      :zoom="2"
                       geojsonurl="https://gomap.lausanne.ch/gomap-api/chantiers"
         baselayer="orthophotos_ortho_lidar_2016"/>
-        -->
+        <!--
         <lausanne-map class="map-big"
                       :zoom="2"
-                      geojsonurl="https://gomap.lausanne.ch/gomap-api/chantiers">
-
+                      :geojsondata="geojson">
         </lausanne-map>
+        -->
+
     </div>
 </template>
 
 <script>
+import Log from 'cgil-log';
 import lausanneMap from './components/lausanneVuejsMap.vue';
+import { geodata } from './data';
 
+const log = new Log('lausanneVuejsMap');
 export default {
   name: 'app',
   components: {
     lausanneMap,
+  },
+  data() {
+    return {
+      geojson: geodata,
+    };
+  },
+  mounted() {
+    log.t('## entering app.mounted()', this.geojson);
   },
 };
 </script>
