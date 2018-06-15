@@ -24,7 +24,8 @@ import Log from 'cgil-log';
 import { isNullOrUndefined, functionExist } from 'cgil-html-utils';
 
 const DEV = process.env.NODE_ENV === 'development';
-const log = new Log('olMapViewJS');
+const log = (DEV) ? new Log('olMapViewJS', 2) : new Log('olMapViewJS', 1);
+
 const posLausanneSwissCoord = [537892.8, 152095.7];
 const zoomLevelLausanne = 7;
 export const DIGITIZE_PRECISION = 2; // cm is enough in EPSG:21781
@@ -58,6 +59,13 @@ const swissProjection = new OlProjection({
   units: 'm',
 });
 olProj.addProjection(swissProjection);
+
+function fetchStatus(response) {
+  if (response.status >= 200 && response.status < 300) {
+    return Promise.resolve(response);
+  }
+  return Promise.reject(new Error(response.statusText));
+}
 
 /**
  * Allow to retrieve a valid OpenLayers WMTS source object
@@ -145,27 +153,32 @@ function initWmtsLayers(initialBaseLayer) {
   return arrayWmts;
 }
 
-function getStyle(feature, defaultOptions = {
-  fill_color: 'rgba(255, 0, 0, 0.8)',
-  stroke_color: '#191aff',
-  stroke_width: 3,
-}) {
-  if (DEV) log.t('# in getStyle creating feature :', feature);
+function getPolygonStyle(
+  feature,
+  resolution,
+  options = {
+    fill_color: 'rgba(255, 0, 0, 0.8)',
+    stroke_color: '#191aff',
+    stroke_width: 3,
+  },
+) {
+  if (DEV) {
+    log.t('## Entering getStyle with feature :', feature);
+    log.t(`resolution : ${resolution}`);
+  }
   let props = null;
   let theStyle = null;
   if (!isNullOrUndefined(feature) && !isNullOrUndefined(feature.getProperties())) {
     props = feature.getProperties();
     const id = isNullOrUndefined(props.id) ? '#INCONNU#' : props.id;
-    const fillColor = isNullOrUndefined(props.fill_color) ?
-      defaultOptions.fill_color : props.fill_color;
-    if (DEV) log.t(`# in getStyle for id:${id} fillColor = ${fillColor}`);
+    if (DEV) log.t(`id : ${id}`);
     theStyle = new OlStyle({
       fill: new OlFill({
-        color: fillColor,
+        color: isNullOrUndefined(props.fill_color) ? options.fill_color : props.fill_color,
       }),
       stroke: new OlStroke({
-        color: props.stroke_color,
-        width: props.stroke_width,
+        color: isNullOrUndefined(props.stroke_color) ? options.stroke_color : props.stroke_color,
+        width: isNullOrUndefined(props.stroke_width) ? options.stroke_width : props.stroke_width,
       }),
       image: new OlCircle({
         radius: 9,
@@ -177,11 +190,11 @@ function getStyle(feature, defaultOptions = {
   } else {
     theStyle = new OlStyle({
       fill: new OlFill({
-        color: defaultOptions.fill_color, // 'rgba(255, 0, 0, 0.8)',
+        color: options.fill_color, // 'rgba(255, 0, 0, 0.8)',
       }),
       stroke: new OlStroke({
-        color: defaultOptions.stroke_color, // '#191aff',
-        width: defaultOptions.stroke_width,
+        color: options.stroke_color, // '#191aff',
+        width: options.stroke_width,
       }),
       image: new OlCircle({
         radius: 9,
@@ -213,25 +226,29 @@ export function getNumberFeaturesInLayer(olLayer) {
   return arrFeatures.length;
 }
 
-
 export function loadGeoJsonUrlPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
   if (DEV) log.t(`# in loadGeoJSONPolygonLayer creating Layer : ${geojsonUrl}`);
   fetch(geojsonUrl)
+    .then(fetchStatus)
     .then(response => response.json())
     .then((json) => {
       log.t('# in loadGeoJSONPolygonLayer then((json) => : ', json);
       const vectorSource = getVectorSourceGeoJson(json);
       const newLayer = new OlLayerVector({
         source: vectorSource,
-        style: getStyle(),
+        style: getPolygonStyle,
       });
-      log.w(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
+      log.l(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
       olMap.addLayer(newLayer);
       const extent = newLayer.getSource().getExtent();
       olMap.getView().fit(extent, olMap.getSize());
       if (functionExist(loadCompleteCallback)) {
         loadCompleteCallback(newLayer);
       }
+    })
+    .catch((error) => {
+      // TODO find a way to send back this error to client
+      log.e(`loadGeoJSONPolygonLayer # FETCH REQUEST FAILED with url: ${geojsonUrl}`, error);
     });
 }
 
@@ -246,7 +263,7 @@ export function addGeoJSONPolygonLayer(olMap, geoJsonData) {
    */
   const newLayer = new OlLayerVector({
     source: vectorSource,
-    style: getStyle(),
+    style: getPolygonStyle,
   });
   olMap.addLayer(newLayer);
   const extent = newLayer.getSource().getExtent();
@@ -303,9 +320,9 @@ export function createLausanneMap(
     const vectorSource = getVectorSourceGeoJson(geojsonData);
     newLayer = new OlLayerVector({
       source: vectorSource,
-      style: getStyle,
+      style: getPolygonStyle,
     });
-    log.w(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
+    log.l(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
     arrLayers.push(newLayer);
   }
 

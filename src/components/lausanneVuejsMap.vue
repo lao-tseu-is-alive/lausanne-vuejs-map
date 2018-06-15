@@ -1,5 +1,6 @@
 <template>
     <div class="map">
+        <div v-if="displayAlertMessage" ref="message" class="mesage-box">This is an alert !</div>
         <div ref="mymap" class="map-content"></div>
     </div>
 </template>
@@ -9,14 +10,16 @@ import Log from 'cgil-log';
 // import { isNullOrUndefined } from 'cgil-html-utils';
 import { createLausanneMap, loadGeoJsonUrlPolygonLayer } from './lausanneOlMapView';
 
+const DEV = process.env.NODE_ENV === 'development';
+const log = (DEV) ? new Log('lausanneVuejsMap', 4) : new Log('lausanneVuejsMap', 1);
 const posLausanneGareSwissCoord = [537892.8, 152095.7];
-const log = new Log('lausanneVuejsMap');
 export default {
   name: 'lausanneVuejsMap',
   data() {
     return {
       Map: null,
       VectorLayer: null,
+      displayAlertMessage: false,
     };
   },
   props: {
@@ -46,10 +49,10 @@ export default {
     log.l(`zoom : ${this.zoom} center : ${this.center}`);
     this.Map = createLausanneMap(
       this.$refs.mymap,
-      this.center, this.zoom,
-      this.baselayer, this.geojsondata,
+      this.center, this.zoom, this.baselayer,
+      this.geojsondata,
     );
-    log.l('OpenLAyers MAP', this.Map);
+    // log.l('OpenLAyers MAP', this.Map);
     if (this.geojsonurl.length > 4) {
       log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${this.geojsonurl}`);
       loadGeoJsonUrlPolygonLayer(this.Map, this.geojsonurl);
@@ -71,10 +74,17 @@ export default {
         height: 95%;
         margin: 0px 0 0;
         padding: 0;
+        .message-box {
+            border: solid 2px red;
+            background-color: #ff511f;
+            position: absolute;
+            z-index: 100;
+        }
+        .map-content{
+            width: 100%;
+            height: 100%;
+        }
     }
-    .map-content{
-        width: 100%;
-        height: 100%;
-    }
+
 
 </style>
