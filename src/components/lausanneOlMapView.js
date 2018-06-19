@@ -181,9 +181,9 @@ function getPolygonStyle(
         width: isNullOrUndefined(props.stroke_width) ? options.stroke_width : props.stroke_width,
       }),
       image: new OlCircle({
-        radius: 9,
+        radius: isNullOrUndefined(props.stroke_width) ? options.stroke_width : props.stroke_width,
         fill: new OlFill({
-          color: '#ffcc33',
+          color: isNullOrUndefined(props.fill_color) ? options.fill_color : props.fill_color,
         }),
       }),
     });

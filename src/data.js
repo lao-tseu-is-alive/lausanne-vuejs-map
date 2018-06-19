@@ -6,6 +6,20 @@ export const geodata = {
   [{
     type: 'Feature',
     geometry: {
+      type: 'Point',
+      coordinates: [536154.05, 151000.7],
+    },
+    properties: {
+      id: 131104,
+      fill_color: 'rgba(255, 0, 0, 0.38)',
+      stroke_color: '#FF0000',
+      stroke_width: 33,
+      x_centroid: 538120.304,
+      y_centroid: 151632.746,
+    },
+  },  {
+    type: 'Feature',
+    geometry: {
       type: 'MultiPolygon',
       coordinates: [[[[538024.05, 151700.7], [538018.8, 151692.95], [538146.55, 151607.2], [538162.3, 151599.2], [538219.3, 151572.2], [538222.05, 151581.95], [538164.8, 151608.2], [538136.05, 151624.7], [538095.925, 151652.575], [538057.05, 151677.95], [538024.05, 151700.7]]]],
     },

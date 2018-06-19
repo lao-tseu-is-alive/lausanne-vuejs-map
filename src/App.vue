@@ -1,6 +1,6 @@
 <template>
     <div id="app">
-        <!-- here you can put a toolbar -->
+        <!-- here you can put a toolbar
         <lausanne-map class="map-small"
                       :zoom="7"
                       :geojsondata="geojson"
@@ -9,12 +9,12 @@
                       :zoom="2"
                       geojsonurl="https://gomap.lausanne.ch/gomap-api/chantiers"
         baselayer="orthophotos_ortho_lidar_2016"/>
-        <!--
+        -->
+
         <lausanne-map class="map-big"
                       :zoom="2"
                       :geojsondata="geojson">
         </lausanne-map>
-        -->
 
     </div>
 </template>
@@ -66,7 +66,7 @@ export default {
         }
         .map-big {
             width: 100%;
-            height: 500px;
+            height: 100%;
             margin: 10px;
             float: left;
         }
