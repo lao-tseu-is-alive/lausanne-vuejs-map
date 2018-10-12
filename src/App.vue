@@ -13,7 +13,8 @@
 
         <lausanne-map class="map-big"
                       :zoom="2"
-                      :geojsondata="geojson">
+                      :geojsondata="geojson"
+        @mapclick="handleClick">
         </lausanne-map>
 
     </div>
@@ -37,6 +38,11 @@ export default {
   },
   mounted() {
     log.t('## entering app.mounted()', this.geojson);
+  },
+  methods: {
+    handleClick: (data) => {
+      log.t('## entering handleClick(evt) data', data);
+    },
   },
 };
 </script>

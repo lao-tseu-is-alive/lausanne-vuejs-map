@@ -1,43 +1,74 @@
 import proj4 from 'proj4';
-import OlMap from 'ol/map';
-import OlView from 'ol/view';
-import OlAttribution from 'ol/attribution';
-import OlCircle from 'ol/style/circle';
-// import olEventsCondition from 'ol/events/condition';
-import OlFill from 'ol/style/fill';
-import OlFormatGeoJSON from 'ol/format/geojson';
-import OlFormatWKT from 'ol/format/wkt';
-import OlLayerVector from 'ol/layer/vector';
-import OlLayerTile from 'ol/layer/tile';
-import OlMousePosition from 'ol/control/mouseposition';
-import olControl from 'ol/control';
-import olCoordinate from 'ol/coordinate';
-// import olObservable from 'ol/observable';
-import olProj from 'ol/proj';
-import OlProjection from 'ol/proj/projection';
-import OlSourceVector from 'ol/source/vector';
-import OlSourceWMTS from 'ol/source/wmts';
-import OlStroke from 'ol/style/stroke';
-import OlStyle from 'ol/style/style';
-import OlTileGridWMTS from 'ol/tilegrid/wmts';
+import OlMap from 'ol/Map';
+import OlView from 'ol/View';
+// import OlCollection from 'ol/Collection';
+import OlCircle from 'ol/style/Circle';
+// import { singleClick, shiftKeyOnly, altKeyOnly } from 'ol/events/condition';
+// import OlFeature from 'ol/Feature';
+import OlFill from 'ol/style/Fill';
+import OlFormatGeoJSON from 'ol/format/GeoJSON';
+import OlFormatWKT from 'ol/format/WKT';
+// import OlInteractionDraw from 'ol/interaction/Draw';
+// import OlInteractionModify from 'ol/interaction/Modify';
+// import OlInteractionSelect from 'ol/interaction/Select';
+// import OlInteractionTranslate from 'ol/interaction/Translate';
+import OlLayerVector from 'ol/layer/Vector';
+import OlLayerTile from 'ol/layer/Tile';
+import OlMousePosition from 'ol/control/MousePosition';
+// import OlMultiPolygon from 'ol/geom/MultiPolygon';
+import { defaults as defaultControls } from 'ol/control';
+import { createStringXY } from 'ol/coordinate';
+// import olObservable from 'ol/Observable';
+import { addProjection, get } from 'ol/proj';
+import { register } from 'ol/proj/proj4';
+import OlProjection from 'ol/proj/Projection';
+import OlSourceVector from 'ol/source/Vector';
+import OlSourceWMTS from 'ol/source/WMTS';
+import OlStroke from 'ol/style/Stroke';
+import OlStyle from 'ol/style/Style';
+import OlTileGridWMTS from 'ol/tilegrid/WMTS';
 import Log from 'cgil-log';
 import { isNullOrUndefined, functionExist } from 'cgil-html-utils';
 
 const DEV = process.env.NODE_ENV === 'development';
-const log = (DEV) ? new Log('olMapViewJS', 2) : new Log('olMapViewJS', 1);
+const log = (DEV) ? new Log('olMapViewJS', 5) : new Log('olMapViewJS', 1);
 
 const posLausanneSwissCoord = [537892.8, 152095.7];
 const zoomLevelLausanne = 7;
 export const DIGITIZE_PRECISION = 2; // cm is enough in EPSG:21781
-
+// TODO adapter url ci-dessous /interne - externe
+const baseInternalWmtsUrl = 'https://tiles01.lausanne.ch/tiles'; // valid on internet
+// const baseWmtsUrl = 'https://map.lausanne.ch/tiles'; // valid on internet
+const RESOLUTIONS = [50, 20, 10, 5, 2.5, 1, 0.5, 0.25, 0.1, 0.05];
+const MAX_EXTENT_LIDAR = [532500, 149000, 545625, 161000]; // lidar 2012
 proj4.defs('EPSG:21781', '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=600000 +y_0=200000 +ellps=bessel +towgs84=674.4,15.1,405.3,0,0,0,0 +units=m +no_defs');
+proj4.defs('EPSG:2056', '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs');
+
+register(proj4);
+const olSwissProjection = get('EPSG:21781');
+// olSwissProjection.setExtent([485071.54, 75346.36, 828515.78, 299941.84]);
+olSwissProjection.setExtent(MAX_EXTENT_LIDAR);
+
+
+const swissProjection = new OlProjection({
+  code: get('EPSG:21781'),
+  extent: MAX_EXTENT_LIDAR,
+  units: 'm',
+});
+addProjection(swissProjection);
+
 
 export function Conv21781To4326(x, y) {
   const projSource = new proj4.Proj('EPSG:21781');
   const projDest = new proj4.Proj('EPSG:4326');
   return proj4.transform(projSource, projDest, [x, y]);
 }
-
+// 2056 MN95 new Swiss Projection
+export function Conv21781To2056(x, y) {
+  const projSource = new proj4.Proj('EPSG:21781');
+  const projDest = new proj4.Proj('EPSG:2056');
+  return proj4.transform(projSource, projDest, [x, y]);
+}
 export function Conv4326To21781(x, y) {
   const projSource = new proj4.Proj('EPSG:4326');
   const projDest = new proj4.Proj('EPSG:21781');
@@ -49,16 +80,6 @@ export function Conv3857To21781(x, y) {
   const projDest = new proj4.Proj('EPSG:21781');
   return proj4.transform(projSource, projDest, [x, y]);
 }
-
-const baseWmtsUrl = 'https://map.lausanne.ch/tiles'; // valid on internet
-const RESOLUTIONS = [50, 20, 10, 5, 2.5, 1, 0.5, 0.25, 0.1, 0.05];
-const MAX_EXTENT_LIDAR = [532500, 149000, 545625, 161000]; // lidar 2012
-const swissProjection = new OlProjection({
-  code: 'EPSG:21781',
-  extent: MAX_EXTENT_LIDAR,
-  units: 'm',
-});
-olProj.addProjection(swissProjection);
 
 function fetchStatus(response) {
   if (response.status >= 200 && response.status < 300) {
@@ -86,16 +107,14 @@ function wmtsLausanneSource(layer, options) {
   });
   const extension = options.format || 'png';
   const timestamp = options.timestamps;
-  let url = `${baseWmtsUrl}/1.0.0/{Layer}/default/${timestamp
+  let url = `${baseInternalWmtsUrl}/1.0.0/{Layer}/default/${timestamp
   }/swissgrid_05/{TileMatrix}/{TileRow}/{TileCol}.${extension}`;
   // eslint-disable-next-line
   url = url.replace('http:', location.protocol);
   // noinspection ES6ModulesDependencies
   return new OlSourceWMTS(/** @type {olx.source.WMTSOptions} */{
     // crossOrigin: 'anonymous',
-    attributions: [new OlAttribution({
-      html: '&copy;<a "href=\'http://www.lausanne.ch/cadastre>Cadastre\'>SGLEA-C Lausanne</a>',
-    })],
+    attributions: '&copy;<a "href=\'http://www.lausanne.ch/cadastre>Cadastre\'>SGLEA-C Lausanne</a>',
     url,
     tileGrid,
     layer,
@@ -227,7 +246,7 @@ export function getNumberFeaturesInLayer(olLayer) {
 }
 
 export function loadGeoJsonUrlPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
-  if (DEV) log.t(`# in loadGeoJSONPolygonLayer creating Layer : ${geojsonUrl}`);
+  if (DEV) log.t(`# in loadGeoJsonUrlPolygonLayer creating Layer : ${geojsonUrl}`);
   fetch(geojsonUrl)
     .then(fetchStatus)
     .then(response => response.json())
@@ -294,6 +313,9 @@ export function getOlView(centerView = posLausanneSwissCoord, zoomView = 12) {
  * @param {array} centerOfMap : [x,y] Swiss Coordinates of the initial center of the view EPSG21781
  * @param {number} zoomLevel : an integer from 1 to 12 representing the level of zoom
  * @param {string} baseLayer : the name of one of the WMTS Lausanne base layers
+ * @param {Object} geojsonData: a geojson object to draw in this map
+ * @param {string} geojsonUrl: an url to retrieve a geojson (geojsonData should be null)
+ * @param {function} clickCallback: a callback function to execute after a click on the map
  * @returns {OlMap} : an instance of an OpenLayers Map Object with the WMTS Layers for Lausanne
  */
 export function createLausanneMap(
@@ -302,10 +324,11 @@ export function createLausanneMap(
   baseLayer = 'fonds_geo_osm_bdcad_couleur',
   geojsonData = null,
   geojsonUrl = '',
+  clickCallback = null,
 ) {
   if (DEV) log.t(`# in createLausanneMap with zoomLevel : ${zoomLevel}`, geojsonData);
   const olMousePosition = new OlMousePosition({
-    coordinateFormat: olCoordinate.createStringXY(1),
+    coordinateFormat: createStringXY(1),
     projection: 'EPSG:2181',
     /*
     className: 'map-mouse-position',
@@ -330,7 +353,7 @@ export function createLausanneMap(
     target: divMap,
     loadTilesWhileAnimating: true,
     // projection: swissProjection,
-    controls: olControl.defaults({
+    controls: defaultControls({
       attributionOptions: ({
         collapsible: false,
       }),
@@ -346,6 +369,18 @@ export function createLausanneMap(
     log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${geojsonUrl}`);
     loadGeoJsonUrlPolygonLayer(myMap, geojsonUrl);
   }
+  // gestion des click sur la carte
+  myMap.on('click', (evt) => {
+    if (DEV) {
+      log.t('# in Map click EventHandler evt:', (evt)); // coord nationale suisse
+      log.l(myMap.getPixelFromCoordinate(evt.coordinate)); // coord pixel
+    }
+    if (functionExist(clickCallback)) {
+      clickCallback(evt.coordinate[0], evt.coordinate[1]);
+    } else {
+      // nobody seems to care about the coordinates of this click
+    }
+  });
   return myMap;
 }
 
