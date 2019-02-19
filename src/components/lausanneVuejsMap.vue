@@ -6,7 +6,7 @@
         box-sizing: border-box;
         overflow: hidden;
         border: solid 1px #1b4593;
-        background: aqua;
+        background: white;
         width: 100%;
         height: 95%;
         margin: 0px 0 0;
@@ -94,8 +94,11 @@ import { isNullOrUndefined } from 'cgil-html-utils';
 import {
   createLausanneMap,
   loadGeoJsonUrlPolygonLayer,
+  getLayerByName,
 } from './lausanneOlMapView';
 
+// loading communes data
+const communesUrl = '/geodata/communes_vd_clipped_gc_5m_small.json';
 const DEV = process.env.NODE_ENV === 'development';
 const log = (DEV) ? new Log('lausanneVuejsMap', 4) : new Log('lausanneVuejsMap', 1);
 const posLausanneGareSwissCoord = [537892.8, 152095.7];
@@ -209,7 +212,7 @@ export default {
           this.$refs.mymap.style.cursor = '';
         }
       },
-    );
+    ); // end of pointermove handler
     // OVERLAY FOR TOOLTIP
     this.ol_Overlay = new OlOverlay({
       element: this.$refs.tooltip,
@@ -222,6 +225,7 @@ export default {
       log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${this.geojsonurl}`);
       loadGeoJsonUrlPolygonLayer(this.Map, this.geojsonurl);
     }
+    this.showCommunesPolygonLayer();
   },
   methods: {
     handleMapClickCoordsXY(x, y) {
@@ -229,9 +233,11 @@ export default {
       const feature = this.Map.forEachFeatureAtPixel(
         this.Map.getPixelFromCoordinate([x, y]),
         (feat, layer) => {
-          log.l('layer found :', layer);
+          log.l(`layer found : ${layer.get('name')}`, layer);
           // you can add a condition on layer to restrict the listener
-          return feat;
+          if (layer.get('name') === 'geojson_data_layer') {
+            return feat;
+          }
         },
       );
       if (!isNullOrUndefined(feature)) {
@@ -252,6 +258,43 @@ export default {
             window.getMapClickCoordsXY(info);
           }
         }
+      }
+    },
+    showCommunesPolygonLayer() {
+      log.t('In showCommunesPolygonLayer ');
+      const olMap = this.Map;
+      const layerName = 'communes_vd_gc';
+      const olLayer = getLayerByName(olMap, layerName);
+      if (isNullOrUndefined(olLayer)) {
+        // layer was not yet created so just do it
+        log.t(`In showCommunesPolygonLayer creating ${layerName}`);
+        loadGeoJsonUrlPolygonLayer(
+          olMap,
+          communesUrl,
+          'communes_vd_gc',
+          (newLayer) => {
+            if (!isNullOrUndefined(newLayer)) {
+              newLayer.setVisible(true);
+            }
+          },
+        );
+      } else {
+        log.t(`In showCommunesPolygonLayer ${layerName} exist olLayer:`, olLayer);
+        olLayer.setVisible(true);
+      }
+      log.l(`End of showCommunesPolygonLayer ${layerName} `);
+    },
+    hideCommunesPolygonLayer() {
+      log.t('In hideCommunesPolygonLayer ');
+      const olMap = this.Map;
+      const layerName = 'communes_vd_gc';
+      const olLayer = getLayerByName(olMap, layerName);
+      if (isNullOrUndefined(olLayer)) {
+        // layer was not yet created so just no need to hide anything
+        log.w(`End of hideCommunesPolygonLayer the layer does not exist so nothing to do : ${layerName}`);
+      } else {
+        olLayer.setVisible(false);
+        log.l(`End of hideCommunesPolygonLayer, now ${layerName} is invisible`);
       }
     },
   },

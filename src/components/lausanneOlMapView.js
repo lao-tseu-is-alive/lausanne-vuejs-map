@@ -172,7 +172,7 @@ function initWmtsLayers(initialBaseLayer) {
   return arrayWmts;
 }
 
-function getPolygonStyle(
+export function getPolygonStyle(
   feature,
   resolution,
   options = {
@@ -226,7 +226,7 @@ function getPolygonStyle(
   return theStyle;
 }
 
-function getVectorSourceGeoJson(geoJsonData) {
+export function getVectorSourceGeoJson(geoJsonData) {
   return new OlSourceVector({
     format: new OlFormatGeoJSON({
       defaultDataProjection: 'EPSG:21781',
@@ -245,8 +245,15 @@ export function getNumberFeaturesInLayer(olLayer) {
   return arrFeatures.length;
 }
 
-export function loadGeoJsonUrlPolygonLayer(olMap, geojsonUrl, loadCompleteCallback) {
-  if (DEV) log.t(`# in loadGeoJsonUrlPolygonLayer creating Layer : ${geojsonUrl}`);
+export function loadGeoJsonUrlPolygonLayer(
+  olMap,
+  geojsonUrl,
+  name = 'geojson_url_layer',
+  makeZoom2extent = true,
+  loadCompleteCallback,
+) {
+  log.t(`# in loadGeoJsonUrlPolygonLayer creating Layer : ${geojsonUrl}`);
+  const layerName = name;
   fetch(geojsonUrl)
     .then(fetchStatus)
     .then(response => response.json())
@@ -254,13 +261,17 @@ export function loadGeoJsonUrlPolygonLayer(olMap, geojsonUrl, loadCompleteCallba
       log.t('# in loadGeoJSONPolygonLayer then((json) => : ', json);
       const vectorSource = getVectorSourceGeoJson(json);
       const newLayer = new OlLayerVector({
+        title: layerName,
+        name: layerName,
         source: vectorSource,
         style: getPolygonStyle,
       });
-      log.l(`Layer Features : ${getNumberFeaturesInLayer(newLayer)}`, newLayer);
+      log.l(`CREATED Layer ${layerName}, with ${getNumberFeaturesInLayer(newLayer)} features !`, newLayer);
       olMap.addLayer(newLayer);
-      const extent = newLayer.getSource().getExtent();
-      olMap.getView().fit(extent, olMap.getSize());
+      if (makeZoom2extent) {
+        const extent = newLayer.getSource().getExtent();
+        olMap.getView().fit(extent, olMap.getSize());
+      }
       if (functionExist(loadCompleteCallback)) {
         loadCompleteCallback(newLayer);
       }
@@ -338,10 +349,13 @@ export function createLausanneMap(
   });
   const arrLayers = initWmtsLayers(baseLayer);
   let newLayer = null;
+  const layerName = 'geojson_data_layer';
   if (!isNullOrUndefined(geojsonData)) {
     log.l(`####will load GeoJSON Polygon Layer( geojsondata:${geojsonData.features.lenght}`, geojsonData);
     const vectorSource = getVectorSourceGeoJson(geojsonData);
     newLayer = new OlLayerVector({
+      title: layerName,
+      name: layerName,
       source: vectorSource,
       style: getPolygonStyle,
     });
@@ -446,4 +460,17 @@ export function getWktGeometryFeaturesInLayer(olLayer) {
     }
   }
   return strGeom;
+}
+
+export function getLayerByName(olMap, layerName) {
+  const layerFound = [];
+  olMap.getLayers().forEach((layer) => {
+    if (layer.get('name') !== undefined && layer.get('name') === layerName) {
+      layerFound.push(layer);
+    }
+  });
+  if (layerFound.length > 0) {
+    return layerFound[0];
+  }
+  return null;
 }

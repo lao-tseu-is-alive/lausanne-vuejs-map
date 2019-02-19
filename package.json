@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "buildlib": "vue-cli-service build --target lib --name lausanneVuejsMap ./src/components/lausanneVuejsMap.vue",
     "lint": "vue-cli-service lint",
     "test:unit": "vue-cli-service test:unit"
   },
