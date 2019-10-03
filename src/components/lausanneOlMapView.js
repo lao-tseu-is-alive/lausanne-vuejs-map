@@ -336,6 +336,7 @@ export function createLausanneMap(
   geojsonData = null,
   geojsonUrl = '',
   clickCallback = null,
+  zoom2geojson = true,
 ) {
   if (DEV) log.t(`# in createLausanneMap with zoomLevel : ${zoomLevel}`, geojsonData);
   const olMousePosition = new OlMousePosition({
@@ -377,7 +378,9 @@ export function createLausanneMap(
   });
   if (!isNullOrUndefined(geojsonData)) {
     const extent = newLayer.getSource().getExtent();
-    myMap.getView().fit(extent, myMap.getSize());
+    if (zoom2geojson === true) {
+      myMap.getView().fit(extent, myMap.getSize());
+    }
   }
   if (geojsonUrl.length > 4) {
     log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${geojsonUrl}`);

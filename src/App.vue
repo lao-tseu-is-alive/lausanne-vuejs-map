@@ -12,9 +12,13 @@
         -->
 
         <lausanne-map class="map-big"
-                      :zoom="2"
+                      :zoom="7"
+                      :center="[538930, 152847]"
+                      :zoom2geojson="false"
                       :geojsondata="geojson"
-        @mapclick="handleClick">
+        @mapclick="handleClick"
+                      baselayer="fonds_geo_osm_bdcad_gris"
+        >
         </lausanne-map>
 
     </div>

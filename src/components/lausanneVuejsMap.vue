@@ -120,6 +120,10 @@ export default {
       type: Array,
       default: () => (posLausanneGareSwissCoord),
     },
+    zoom2geojson: {
+      type: Boolean,
+      default: true,
+    },
     geojsonurl: {
       type: String,
       default: '',
@@ -139,7 +143,7 @@ export default {
     this.Map = createLausanneMap(
       this.$refs.mymap,
       this.center, this.zoom, this.baselayer,
-      this.geojsondata, '', this.handleMapClickCoordsXY,
+      this.geojsondata, '', this.handleMapClickCoordsXY, this.zoom2geojson,
     );
     this.Map.on(
       'pointermove',
@@ -219,13 +223,16 @@ export default {
       offset: [10, -10],
       positioning: 'bottom-center',
     });
+    this.showCommunesPolygonLayer();
     this.Map.addOverlay(this.ol_Overlay);
     // log.l('OpenLAyers MAP', this.Map);
     if (this.geojsonurl.length > 4) {
       log.l(`will enter in loadGeoJsonUrlPolygonLayer(geojsonurl:${this.geojsonurl}`);
       loadGeoJsonUrlPolygonLayer(this.Map, this.geojsonurl);
     }
-    this.showCommunesPolygonLayer();
+    if (this.zoom2geojson === true) {
+      this.zoomToGeoJsonData();
+    }
   },
   methods: {
     handleMapClickCoordsXY(x, y) {
@@ -238,6 +245,7 @@ export default {
           if (layer.get('name') === 'geojson_data_layer') {
             return feat;
           }
+          return null;
         },
       );
       if (!isNullOrUndefined(feature)) {
@@ -260,6 +268,13 @@ export default {
         }
       }
     },
+    zoomToGeoJsonData() {
+      const olMap = this.Map;
+      const layerName = 'geojson_data_layer';
+      const olLayer = getLayerByName(olMap, layerName);
+      const extent = olLayer.getSource().getExtent();
+      olMap.getView().fit(extent, olMap.getSize());
+    },
     showCommunesPolygonLayer() {
       log.t('In showCommunesPolygonLayer ');
       const olMap = this.Map;
@@ -272,6 +287,7 @@ export default {
           olMap,
           communesUrl,
           'communes_vd_gc',
+          false,
           (newLayer) => {
             if (!isNullOrUndefined(newLayer)) {
               newLayer.setVisible(true);
